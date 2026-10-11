@@ -1,0 +1,26 @@
+;;;; qr-show.lisp — QR code via LispQR -> greyscale PNG via png-pure.
+;;;; Run: sbcl --script png-pure/t/qr-show.lisp [TEXT] [OUT.png]
+(load "/Users/vinnyfiano/quicklisp/setup.lisp")
+(ql:quickload :lispqr :silent t)
+(push #p"/Users/vinnyfiano/workspace/modus-lisp/cram/" asdf:*central-registry*)
+(push #p"/Users/vinnyfiano/workspace/modus-lisp/png-pure/" asdf:*central-registry*)
+(asdf:load-system :png-pure)
+
+(defun qr-png (text path &key (scale 8) (quiet 4))
+  (let* ((m (mare5x.lispqr.encode:encode->matrix text :ec-level :m))
+         (n (array-dimension m 0))
+         (side (* scale (+ n (* 2 quiet))))
+         (px (make-array (* side side) :element-type '(unsigned-byte 8) :initial-element 255)))
+    (dotimes (y side)
+      (dotimes (x side)
+        (let* ((mx (floor (- x (* scale quiet)) scale))
+               (my (floor (- y (* scale quiet)) scale)))
+          (when (and (< -1 mx n) (< -1 my n) (= 1 (aref m my mx)))
+            (setf (aref px (+ (* y side) x)) 0)))))
+    (png-pure:write-png-file px side side path :channels 1)
+    (format t "~&wrote ~A (~Dx~D modules, ~Dpx)~%" path n n side)
+    path))
+
+(let ((args (cdr sb-ext:*posix-argv*)))
+  (qr-png (or (first args) "https://example.com/pay?x=1")
+          (or (second args) "/Users/vinnyfiano/workspace/modus-lisp/png-pure/t/qr.png")))
